@@ -1,33 +1,29 @@
-function friction_cell = friction_LIN()
+function friction_cell = friction_LIN(load_cell, mesh, stress_VR, stress_LIN, De, p)
 
 
-Wax = trapz(x_phys, h .* (dpdx + De * dpDdx));
+% Wax = trapz(x_phys, h .* (dpdx + De * dpDdx));
 
+%default = VR
+T_xy_full = stress_VR("tau_xy");
+TD_xy = stress_LIN("tau_xy");
 
-x_phys = solution.domain.x;
-
-if length(x_phys) ~= N
-    x_phys = interp1(linspace(0,1,length(x_phys)), x_phys, linspace(0,1,N));
-end
 
 %Dimensional friction
-friction_top = - (trapz(x_phys,T_xy_full(1,:)) + De * trapz(x_phys,TD_xy(1,:))) * solution.velocity * solution.domain.mu / solution.domain.href;
-friction_bottom = (trapz(x_phys,T_xy_full(end,:)) + De * trapz(x_phys,TD_xy(end,:))) * solution.velocity * solution.domain.mu / solution.domain.href;
-% friction_viscoelastic = (- De * trapz(x_phys,TD_xy(1,:)) + De * trapz(x_phys,TD_xy(end,:))) * solution.velocity * solution.domain.mu / solution.domain.href;
-friction_viscoelastic_bottom = De * trapz(x_phys,TD_xy(end,:)) * solution.velocity * solution.domain.mu / solution.domain.href;
-friction_viscoelastic_top = - De * trapz(x_phys,TD_xy(1,:)) * solution.velocity * solution.domain.mu / solution.domain.href;
+friction_top = - trapz(mesh.x, T_xy_full(1,:));
+friction_bottom = trapz(mesh.x,T_xy_full(end,:)); 
+% friction_viscoelastic = (- De * trapz(x_phys,TD_xy(1,:)) + De * trapz(x_phys,TD_xy(end,:)));
+friction_viscoelastic_bottom = De * trapz(mesh.x, TD_xy(end,:)) ;
+friction_viscoelastic_top = - De * trapz(mesh.x,TD_xy(1,:));
 
 
-if isempty(solution.applied_load)
-    generated_load = (x_phys(2) - x_phys(1)) * trapz(p);
+if isempty(load_cell)
+    generated_load = mesh.dx * trapz(p);
     friction_coeff = - (friction_bottom) / generated_load;
 else
-    friction_coeff = - (friction_bottom) / solution.applied_load;
+    friction_coeff = - (friction_bottom) / load_cell("W_VR");
 end
 
-
-
-friction_cell = containers.Map({"f_t", "f_b", "f_ve_t","f_ve_b", "f_coeff"}, ...
+friction_cell = containers.Map({char("f_t"), char("f_b"), char("f_ve_t"), char("f_ve_b"), char("f_coeff")}, ...
         {friction_top, friction_bottom, friction_viscoelastic_top, friction_viscoelastic_bottom, friction_coeff});
 
 end
