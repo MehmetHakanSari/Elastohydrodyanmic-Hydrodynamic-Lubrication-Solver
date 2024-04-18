@@ -2,6 +2,7 @@ classdef HL_solution
     
     properties
         simulation_proporties
+        PD            %physical description
         mesh 
         fluid
         h 
@@ -12,8 +13,11 @@ classdef HL_solution
         pressure_Re
 
         velocity_field
+        corrected_velocity_field
         stress_LIN
         vel_logic_map
+        
+        step_flag = "off";
          
         %VR
         pressure_VR  
@@ -25,6 +29,8 @@ classdef HL_solution
         force_dic 
         friction_dic
         flowrate_dic
+        
+        dimensional_dic
         
     end
     
@@ -82,8 +88,18 @@ classdef HL_solution
         end
         
         function [obj] = calculate_Friction(obj)
+            
+%             obj.pressure_VR("p")
             [obj.friction_dic] ...
-                = friction_LIN(obj, obj.fluid, obj.mesh);
+                = friction_LIN(obj.load_dic, obj.mesh, obj.stress_VR, obj.stress_LIN, obj.fluid.De, obj.pressure_VR("p"));
+        end
+        
+        function obj = Calculate_Load(obj, cavitation_flag)
+                obj.load_dic = calculate_load(obj , cavitation_flag);
+        end
+        
+         function obj = summary(obj)
+                generate_summary(obj);
         end
 
         function [obj] = FieldProperties(obj)
@@ -103,16 +119,22 @@ classdef HL_solution
                         if varargin{i} == "cavitation"
                             cavitation_flag = varargin{i + 1};
                         end
+                       if varargin{i} == "semi_vel_correction"
+                            semi_vel_correction_flag = varargin{i + 1};
+                        end
                     end
              end
             
-            [obj.pressure_VR, obj.theta_VR, obj.stress_VR] = ...
-                VRCavitation(dt, Spatial_Scheme, Temporal_Scheme, obj, obj.mesh, obj.fluid, cavitation_flag);
+            [obj.pressure_VR, obj.theta_VR, obj.stress_VR, obj.corrected_velocity_field] = ...
+                VRCavitation(dt, Spatial_Scheme, Temporal_Scheme, obj, obj.mesh, obj.fluid, cavitation_flag, semi_vel_correction_flag, obj.step_flag);
         end
-       
-        function obj = Calculate_Load(obj)
-                obj.load_dic = calculate_load(obj);
-        end
+    
 
+        function obj = convert_dimensional(obj, varargin)
+            if isempty(varargin) 
+                dim_quan = obj.PD;
+            end
+            [obj.dimensional_dic] = Convert_Dimensional(obj.pressure_VR, obj.pressure_LIN, obj.stress_VR, obj.load_dic, obj.friction_dic, dim_quan);
+        end
     end
 end
